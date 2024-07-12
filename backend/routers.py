@@ -35,7 +35,7 @@ async def authenticated_user(message_id: int, status=Body()):
     """Аутентификация пользователя"""
     res = status.get("status")
     await dao.authenticated(message_id, res)
-    return {"result": True}
+    return JSONResponse(status_code=202, content={"result": True})
 
 
 """Маршруты для взаимодействия с привычками"""
@@ -46,14 +46,14 @@ async def add_habits(message_id: int, habit_data=Body()):
     """Добавление привычки"""
     data = habit_data.get("data_habit")
     await dao.add_habit(message_id, data)
-    return {"result": True}
+    return JSONResponse(status_code=201, content={"result": True})
 
 
 @router.delete("/habit/{message_id}/")
 async def delete_habits(message_id: int, name_habit=Body()):
     """Удаление привычки"""
     await dao.delete_habit(message_id, name_habit.get("name_habit"))
-    return JSONResponse(status_code=204, content={"result": True})
+    return JSONResponse(status_code=202, content={"result": True})
 
 
 @router.patch("/habit/{message_id}/")
@@ -62,7 +62,7 @@ async def edit_habits(message_id: int, data=Body()):
     old_name_habit = data.get("old_name_habit")
     edit_data = data.get("edit_data")
     await dao.edit_habit(message_id, old_name_habit, edit_data)
-    return JSONResponse(status_code=204, content={"result": True})
+    return JSONResponse(status_code=202, content={"result": True})
 
 
 @router.get("/list_habit/{message_id}")

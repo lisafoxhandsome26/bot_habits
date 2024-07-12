@@ -1,10 +1,10 @@
 import requests
-from requests import Response
+from telebot import types
+
 from loader import bot
 from dotinputs.states import user_state, STATES
 from dotinputs.buttons import get_profile_buttons
 from config.environments import env
-from telebot import types
 
 
 user_data: dict = {}
@@ -48,7 +48,7 @@ def handle_question(message):
                "Теперь ты можешь устанавливать свои новые привычки,\n"
                "а я буду их контролировать.")
 
-        result: Response = requests.post(f"{env.MAIN_HOST}profile_user/", json={"data": user_data})
+        result = requests.post(f"{env.MAIN_HOST}profile_user/", json={"data": user_data})
         if result.status_code == 201:
             mark = get_profile_buttons()
             bot.send_message(chat_id, sms, reply_markup=mark)

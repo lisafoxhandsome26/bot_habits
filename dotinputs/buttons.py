@@ -2,7 +2,8 @@ from telebot import types
 
 
 def get_habits_page():
-    mark = types.ReplyKeyboardMarkup()
+    """Кнопки для вкладки привычек"""
+    mark = types.ReplyKeyboardMarkup(resize_keyboard=True)
     bt1 = types.KeyboardButton("Перейти на статус привычек")
     bt2 = types.KeyboardButton("Удалить привычку")
     bt3 = types.KeyboardButton("Изменить привычку")
@@ -15,9 +16,10 @@ def get_habits_page():
 
 
 def get_profile_buttons():
-    mark = types.ReplyKeyboardMarkup()
+    """Кнопки для основной вкладки"""
+    mark = types.ReplyKeyboardMarkup(resize_keyboard=True)
     bt1 = types.KeyboardButton("Узнать инфо о себе")
-    bt2 = types.KeyboardButton("Вкладку с привычками")
+    bt2 = types.KeyboardButton("Вкладка с привычками")
     bt3 = types.KeyboardButton("Выйти из своего профиля")
     mark.row(bt1)
     mark.row(bt2, bt3)
@@ -25,7 +27,8 @@ def get_profile_buttons():
 
 
 def get_authorization_buttons():
-    mark = types.ReplyKeyboardMarkup()
+    """Кнопка для авторизации пользователя"""
+    mark = types.ReplyKeyboardMarkup(resize_keyboard=True)
     bt1 = types.KeyboardButton("Авторизоваться")
     mark.add(bt1)
     sms = "Чтобы продолжить вам необходимо авторизоваться!"
@@ -33,6 +36,7 @@ def get_authorization_buttons():
 
 
 def get_yes_or_no(calling_yes, calling_no):
+    """Кнопки для подтверждения выполняемого действия"""
     mark = types.InlineKeyboardMarkup()
     yes = types.InlineKeyboardButton("Да", callback_data=calling_yes)
     no = types.InlineKeyboardButton("Нет", callback_data=calling_no)

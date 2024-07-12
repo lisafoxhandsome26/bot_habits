@@ -7,7 +7,7 @@ from sqlalchemy import ForeignKey
 
 
 pk = Annotated[int, mapped_column(primary_key=True, index=True)]
-date = Annotated[datetime, mapped_column(default=datetime.utcnow)]
+date = Annotated[datetime, mapped_column(default=datetime.now)]
 str_255 = Annotated[str, 255]
 str_500 = Annotated[str, 500]
 
@@ -42,8 +42,21 @@ class Habit(Base):
     period: Mapped[int]
     count_period: Mapped[int]
     created_at: Mapped[date]
-    completed: Mapped[int | None]
+    tracking: Mapped["Tracking"] = relationship("Tracking", uselist=False, backref="habit", lazy="selectin")
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"))
 
     def __repr__(self):
         return f"Habit[{self.name_habit}]"
+
+
+class Tracking(Base):
+    __tablename__ = "tracking"
+
+    id: Mapped[pk]
+    last_update: Mapped[date | None]
+    completed: Mapped[int | None]
+    deferred: Mapped[int | None]
+    habit_id: Mapped["Habit"] = mapped_column(ForeignKey("habit.id", ondelete="CASCADE"))
+
+    def __repr__(self):
+        return f"Tracking[{self.id}]"

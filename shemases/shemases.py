@@ -18,8 +18,18 @@ class HabitSchema(BaseModel):
     period: int
     count_period: int
     created_at: datetime
-    completed: int | None
+    tracking: "TrackingSchema"
 
     @field_serializer('created_at')
     def serialize_created_at(self, created_at: datetime):
-        return str(created_at)
+        return str(created_at)[:-10]
+
+
+class TrackingSchema(BaseModel):
+    completed: int | None
+    deferred: int | None
+    last_update: datetime
+
+    @field_serializer('last_update')
+    def serialize_last_update(self, last_update: datetime):
+        return str(last_update)[:-10]

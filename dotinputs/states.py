@@ -1,7 +1,7 @@
-user_state = {}
-habit_state = {}
+user_state: dict = {}
 
-STATES = {
+
+STATES: dict = {
     'introduction': 'introduction',
     'fullname': 'fullname',
     'age': 'age',
@@ -12,15 +12,9 @@ STATES = {
     'register': 'register'
 }
 
-STATES_ADD_HABIT = {
-    "name_habit": 'name_habit',
-    'period': 'period',
-    'count_period': 'count_period'
-}
 
 user_data: dict = {}
-habit_data: dict = {}
-DATA_USER = [
+DATA_USER: list = [
     {
         "fullname": "Александр Сергеев",
         "age": 27,

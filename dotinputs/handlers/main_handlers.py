@@ -1,12 +1,11 @@
-from loader import bot
+import requests
 from telebot import types
+from loader import bot
 from dotinputs.buttons import get_habits_page, get_authorization_buttons
 from dotinputs.states import STATES, user_state
 from config.environments import env
 from .handle_registration import handle_question
 from .utils import get_profile, get_data_user, check_authorization
-
-import requests
 
 
 @bot.message_handler(commands=["start"])
@@ -64,7 +63,7 @@ def end_check(message):
 
 
 @bot.message_handler(func=lambda message: message.text == "Авторизоваться")
-def authorization_user(message): # Нет проверки зарегестрированого пользователя
+def authorization_user(message):
     """Обработчик профиля пользователя"""
     chat_id: int = message.chat.id
     requests.patch(
@@ -75,7 +74,7 @@ def authorization_user(message): # Нет проверки зарегестри�
     bot.send_message(chat_id, sms, reply_markup=mark)
 
 
-@bot.message_handler(func=lambda message: message.text == "Вкладку с привычками")
+@bot.message_handler(func=lambda message: message.text == "Вкладка с привычками")
 def page_habits(message):
     chat_id: int = message.chat.id
     user: dict = check_authorization(chat_id)
@@ -91,7 +90,7 @@ def page_habits(message):
 
 
 @bot.message_handler(func=lambda message: message.text == "Выйти из своего профиля")
-def exit_profile(message): # Нет проверки зарегестрированого пользователя
+def exit_profile(message):
     chat_id: int = message.chat.id
     requests.patch(
         f"{env.MAIN_HOST}profile_user/authenticated/{chat_id}/",
@@ -107,10 +106,10 @@ def exit_profile(message): # Нет проверки зарегестриров�
 
 @bot.message_handler(
     func=lambda message:
-    message.text == "Вернуться назад" or # Нет проверки зарегестрированого пользователя
-    message.text == "Узнать инфо о себе" # Нет проверки зарегестрированого пользователя
+    message.text == "Вернуться назад" or
+    message.text == "Узнать инфо о себе"
 )
-def comeback_or_info(message): #???
+def comeback_or_info(message):
     chat_id: int = message.chat.id
     sms, mark = get_profile(chat_id)
     bot.send_message(chat_id, sms, reply_markup=mark)
