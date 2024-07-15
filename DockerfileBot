@@ -1,0 +1,14 @@
+FROM python:3.12.3-alpine3.20
+
+WORKDIR /src
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+COPY /dotinputs/ /src/dotinputs
+COPY /requirements/bot/ .
+COPY /config/ /src/config
+COPY loader.py /src/loader.py
+COPY bot.py /src/bot.py
+
+RUN pip install --upgrade pip "poetry==1.8.3"
+RUN poetry config virtualenvs.create false --local
+RUN poetry install

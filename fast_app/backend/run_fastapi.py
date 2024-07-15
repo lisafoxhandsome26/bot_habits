@@ -5,7 +5,6 @@ from fastapi import FastAPI
 
 from .routers import router
 from database.core import close_session
-from database.dao import prepare_database
 
 
 @asynccontextmanager
