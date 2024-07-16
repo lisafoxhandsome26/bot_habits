@@ -54,20 +54,20 @@ def resumes_trigger(chat_id, habits):
 def record_execution(call):
     chat_id: int = call.message.chat.id
     message_id: int = call.message.message_id
-    text = call.data.split(":")
+    trigger, name_habit = call.data.split(":")
     mark = get_habits_page()
-    if text[0] == "Выполнить":
+    if trigger == "Выполнить":
         result = requests.patch(
             f"{env.MAIN_HOST}habit/status/{chat_id}/",
-            json={"name_habit": text[1], "completed": True})
+            json={"name_habit": name_habit, "completed": True})
         if result.status_code == 202:
             data: dict = json.loads(result.text)
             if data["status"] == "Выполнено":
-                cancel_trigger(chat_id, text[1])
-                sms = f"❤️ Примите мои поздравления вы выполнили заданное количество повторений {text[1]}"
+                cancel_trigger(chat_id, name_habit)
+                sms = f"❤️ Примите мои поздравления вы выполнили заданное количество повторений {name_habit}"
                 bot.send_message(chat_id, sms, reply_markup=mark)
             else:
-                sms = f'😊 Ваша привычка "{text[1]}" зафиксирована в БД.'
+                sms = f'😊 Ваша привычка "{name_habit}" зафиксирована в БД.'
                 bot.send_message(chat_id, sms, reply_markup=mark)
         else:
             sms = "Что то пошло не так"
@@ -75,7 +75,7 @@ def record_execution(call):
     else:
         requests.patch(
             f"{env.MAIN_HOST}habit/status/{chat_id}/",
-            json={"name_habit": text[1], "completed": False})
-        sms = f'😌 Выполнение привычки "{text[1]}" перенесено на следующий раз'
+            json={"name_habit": name_habit, "completed": False})
+        sms = f'😌 Выполнение привычки "{name_habit}" перенесено на следующий раз'
         bot.send_message(chat_id, sms, reply_markup=mark)
     bot.edit_message_reply_markup(chat_id=chat_id, message_id=message_id, reply_markup=None)
