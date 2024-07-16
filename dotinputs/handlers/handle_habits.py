@@ -7,6 +7,7 @@ from telebot import types
 from .utils import check_authorization, get_sms_habits, get_sms_for, validator_params, validator_period
 from loader import bot
 from dotinputs.buttons import get_habits_page, get_authorization_buttons, get_yes_or_no
+from dotinputs.scheduler.handle_schedule import set_cron, cancel_trigger
 from config.environments import env
 
 habit_data: dict = {}
@@ -51,63 +52,6 @@ def habits(message):
             bot.send_message(chat_id, sms, reply_markup=mark)
         else:
             bot.reply_to(message, "Я не понимаю что вы ввели, введите /start")
-
-
-"""Добавление привычки"""
-
-
-@bot.message_handler(func=lambda message: message.text == "Добавить привычку")
-def add_habits(message):
-    chat_id: int = message.chat.id
-    user = check_authorization(chat_id)
-    if user != "Авторизоваться" and user is not False:
-        habit_state[message.chat.id] = STATES_ADD_HABIT['name_habit']
-        mark = types.ReplyKeyboardRemove()
-        bot.send_message(chat_id, "Введите название привычки", reply_markup=mark)
-        bot.register_next_step_handler(message, add_habit)
-    elif user == "Авторизоваться":
-        sms, mark = get_authorization_buttons()
-        bot.send_message(chat_id, sms, reply_markup=mark)
-    else:
-        bot.reply_to(message, "Я не понимаю что вы ввели, введите /start")
-
-
-@bot.message_handler(func=lambda message: message.chat.id in habit_state)
-def add_habit(message):
-    global habit_data
-    chat_id = message.chat.id
-    state = habit_state[chat_id]
-    if state == STATES_ADD_HABIT['name_habit']:
-        sms = f'Введите дату первого напоминания привычки в формате: {str(datetime.now())[:-7]}'
-        bot.send_message(chat_id, sms)
-        habit_data["name_habit"] = message.text
-        habit_state[chat_id] = STATES_ADD_HABIT['period']
-    elif state == STATES_ADD_HABIT['period']:
-        try:
-            result_period: int = validator_period(message.text)
-            sms = "Сколько раз отправлять уведомления? Введите число не менее 21"
-            habit_data["period"] = result_period
-            habit_state[chat_id] = STATES_ADD_HABIT['count_period']
-            bot.send_message(chat_id, sms)
-        except ValueError:
-            bot.send_message(chat_id, f"Введите пожалуйста коректное значение!")
-    elif state == STATES_ADD_HABIT['count_period']:
-        try:
-            number: int = int(message.text)
-            if number < 21:
-                raise ValueError
-        except ValueError:
-            bot.send_message(chat_id, f"Введите пожалуйста коректное значение!")
-        else:
-            habit_data["count_period"] = number
-            requests.post(
-                f"{env.MAIN_HOST}habit/{chat_id}/",
-                json={"data_habit": habit_data}
-            )
-            habit_data = {}
-            mark = get_habits_page()
-            del habit_state[chat_id]
-            bot.send_message(chat_id, f"Твоя привычка успешно добавлена", reply_markup=mark)
 
 
 """Удаление привычки"""
@@ -169,11 +113,82 @@ def make_delete_habit(call):
     else:
         url = f"{env.MAIN_HOST}habit/{chat_id}/"
         result = requests.delete(url, json={"name_habit": text[1]})
+
         if result.status_code == 202:
+            cancel_trigger(chat_id, text[1])
             sms = f'Ваша привычка "{text[1]}" успешно удалена'
             bot.send_message(chat_id, sms, reply_markup=mark)
         else:
             sms = "Что то пошло не так"
+            bot.send_message(chat_id, sms, reply_markup=mark)
+
+
+"""Добавление привычки"""
+
+
+@bot.message_handler(func=lambda message: message.text == "Добавить привычку")
+def add_habits(message):
+    chat_id: int = message.chat.id
+    user = check_authorization(chat_id)
+    if user != "Авторизоваться" and user is not False:
+        habit_state[message.chat.id] = STATES_ADD_HABIT['name_habit']
+        mark = types.ReplyKeyboardRemove()
+        bot.send_message(chat_id, "Введите название привычки", reply_markup=mark)
+        bot.register_next_step_handler(message, add_habit)
+    elif user == "Авторизоваться":
+        sms, mark = get_authorization_buttons()
+        bot.send_message(chat_id, sms, reply_markup=mark)
+    else:
+        bot.reply_to(message, "Я не понимаю что вы ввели, введите /start")
+
+
+@bot.message_handler(func=lambda message: message.chat.id in habit_state)
+def add_habit(message):
+    global habit_data
+    chat_id = message.chat.id
+    state = habit_state[chat_id]
+    if state == STATES_ADD_HABIT['name_habit']:
+        try:
+            result = requests.get(f"{env.MAIN_HOST}/habit/{message.text}/{chat_id}/")
+            if result.status_code == 200:
+                habit_data["name_habit"] = message.text
+                habit_state[chat_id] = STATES_ADD_HABIT['period']
+                sms = f'Введите дату первого напоминания привычки в формате: {str(datetime.now())[:-7]}'
+                bot.send_message(chat_id, sms)
+            else:
+                raise ValueError
+        except ValueError:
+            bot.send_message(chat_id, f"Введите пожалуйста уникальное название привычки!")
+    elif state == STATES_ADD_HABIT['period']:
+        try:
+            result_period: int = validator_period(message.text)
+            sms = "Сколько раз отправлять уведомления? Введите число не менее 21"
+            habit_data["period"] = result_period
+            habit_state[chat_id] = STATES_ADD_HABIT['count_period']
+            bot.send_message(chat_id, sms)
+        except ValueError:
+            bot.send_message(chat_id, f"Введите пожалуйста коректное значение!")
+    elif state == STATES_ADD_HABIT['count_period']:
+        try:
+            number: int = int(message.text)
+            if number < 21:
+                raise ValueError
+        except ValueError:
+            bot.send_message(chat_id, f"Введите пожалуйста коректное значение!")
+        else:
+            habit_data["count_period"] = number
+            requests.post(
+                f"{env.MAIN_HOST}habit/{chat_id}/",
+                json={"data_habit": habit_data}
+            )
+            name_h = habit_data["name_habit"]
+            new_time = habit_data["period"]
+            set_cron(chat_id, name_h, new_time)
+
+            habit_data = {}
+            del habit_state[chat_id]
+
+            sms, mark = "Твоя привычка успешно добавлена", get_habits_page()
             bot.send_message(chat_id, sms, reply_markup=mark)
 
 
@@ -214,29 +229,18 @@ def choice_edit_habit(message, data_edit, sms_for_edit):
         habit_data_edit["old_name_habit"] = name_habit
 
         mark = types.InlineKeyboardMarkup()
-        name = types.InlineKeyboardButton(
-            "Название",
-            callback_data=f"name_habit:{name_habit}"
-        )
-        period = types.InlineKeyboardButton(
-            "Период",
-            callback_data=f"period:{name_habit}"
-        )
-        count_period = types.InlineKeyboardButton(
-            "Количество смс",
-            callback_data=f"count_period:{name_habit}"
-        )
-        all_params = types.InlineKeyboardButton(
-            "Все параметры",
-            callback_data=f"all_params:{name_habit}"
-        )
+        name = types.InlineKeyboardButton("Название", callback_data=f"name_habit:{name_habit}")
+        period = types.InlineKeyboardButton("Период", callback_data=f"period:{name_habit}")
+        count_period = types.InlineKeyboardButton("Количество смс", callback_data=f"count_period:{name_habit}")
+        all_params = types.InlineKeyboardButton("Все параметры", callback_data=f"all_params:{name_habit}")
         mark.row(name, count_period)
         mark.row(period, all_params)
+
         sms = f'Вы выбрали для изменения привычку - "{name_habit}". Вебирите параметр'
         bot.send_message(chat_id, sms, reply_markup=mark)
     except (ValueError, KeyError):
-        mark = types.ReplyKeyboardRemove()
-        bot.reply_to(message, f"Выберите пожалуйста коректный номер привычки!")
+        sms, mark = f"Выберите пожалуйста коректный номер привычки!", types.ReplyKeyboardRemove()
+        bot.reply_to(message, sms)
         bot.send_message(chat_id, sms_for_edit, reply_markup=mark)
         bot.register_next_step_handler(message, choice_edit_habit, data_edit, sms_for_edit)
 
@@ -283,10 +287,17 @@ def edit_all_params(message):
     if state == STATES_EDIT['name_habit']:
         habit_state_edit[chat_id] = STATES_EDIT['period']
     elif state == STATES_EDIT['period']:
-        sms = f'Введите дату первого напоминания привычки в формате: {str(datetime.now())[:-7]}'
-        bot.send_message(chat_id, sms)
-        habit_data_edit['edit_data']['name_habit'] = message.text
-        habit_state_edit[chat_id] = STATES_EDIT['count_period']
+        try:
+            result = requests.get(f"{env.MAIN_HOST}/habit/{message.text}/{chat_id}/")
+            if result.status_code == 200:
+                sms = f'Введите дату первого напоминания привычки в формате: {str(datetime.now())[:-7]}'
+                bot.send_message(chat_id, sms)
+                habit_data_edit['edit_data']['name_habit'] = message.text
+                habit_state_edit[chat_id] = STATES_EDIT['count_period']
+            else:
+                raise ValueError
+        except ValueError:
+            bot.send_message(chat_id, "Введите пожалуйста уникальное название привычки!")
     elif state == STATES_EDIT['count_period']:
         try:
             sms = "Сколько раз отправлять уведомления? Введите число не менее 21"
@@ -295,7 +306,7 @@ def edit_all_params(message):
             habit_state_edit[chat_id] = STATES_EDIT['end_edit']
             bot.send_message(chat_id, sms)
         except ValueError:
-            bot.send_message(chat_id, f"Введите пожалуйста коректное значение!")
+            bot.send_message(chat_id, "Введите пожалуйста коректное значение!")
     elif state == STATES_EDIT['end_edit']:
         try:
             number: int = int(message.text)
@@ -314,7 +325,7 @@ def edit_param(message, key, sms):
     global habit_data_edit
     chat_id, new_param = message.chat.id, message.text
     try:
-        result = validator_params({key: new_param})
+        result = validator_params({key: new_param}, chat_id)
     except ValueError:
         bot.send_message(chat_id, "Введите пожалуйста коректное значение!")
         bot.register_next_step_handler(message, edit_param, key, sms)
@@ -340,8 +351,19 @@ def make_edit_habit(call):
         url = f"{env.MAIN_HOST}habit/{chat_id}/"
         result = requests.patch(url, json=habit_data_edit)
         if result.status_code == 202:
-            sms = f'Ваша привычка "{text[1]}" успешно изменена'
-            bot.send_message(chat_id, sms, reply_markup=mark)
+            data_habit = json.loads(result.text)
+            try:
+                old_name: str = data_habit["old_name"]
+                new_name: str = data_habit["new_habit"]["name_habit"]
+                new_time: int = data_habit["new_habit"]["period"]
+            except KeyError:
+                sms = "Что то пошло не так"
+                bot.send_message(chat_id, sms, reply_markup=mark)
+            else:
+                cancel_trigger(chat_id, old_name)
+                set_cron(chat_id, new_name, new_time)
+                sms = f'Ваша привычка "{text[1]}" успешно изменена'
+                bot.send_message(chat_id, sms, reply_markup=mark)
         else:
             sms = "Что то пошло не так"
             bot.send_message(chat_id, sms, reply_markup=mark)

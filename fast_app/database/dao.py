@@ -1,3 +1,4 @@
+from datetime import datetime
 from sqlalchemy import select, delete, update
 from sqlalchemy.orm import selectinload
 from .core import session, engine
@@ -26,7 +27,7 @@ async def prepare_database() -> None:
 
 async def check_user(message_id: int) -> int | None:
     """Функция для проверки пользователя"""
-    stm = select(User.id).filter_by(chat_id=int(message_id), authorization=True)
+    stm = select(User.id).filter_by(chat_id=int(message_id))
     async with session() as sos:
         result = await sos.execute(stm)
         user_id = result.scalars().one_or_none()
@@ -34,7 +35,7 @@ async def check_user(message_id: int) -> int | None:
             return user_id
 
 
-async def get_all_data_user(message_id: int) -> list | None:
+async def get_all_data_user(message_id: int) -> User | None:
     """Функция для получения данных  о пользователе"""
     stm = select(User).options(
         selectinload(User.habits)).filter_by(
@@ -97,6 +98,18 @@ async def edit_habit(message_id: int, old_name_habit: str, edit_data: dict) -> N
             await sos.commit()
 
 
+async def edit_status(habit: Habit, completed: bool) -> None:
+    async with session() as sos:
+        if completed:
+            habit.count_period -= 1
+            habit.tracking.completed += 1
+        else:
+            habit.tracking.deferred += 1
+        habit.tracking.last_update = datetime.now()
+        sos.add(habit)
+        await sos.commit()
+
+
 async def authenticated(message_id: int, status: bool) -> None:
     """Функция для авторизации или выхода из профиля пользователя"""
     stm = update(User).values(authorization=status).filter_by(chat_id=message_id)
@@ -118,6 +131,15 @@ async def add_habit(message_id: int, data_habit: dict) -> None:
             )
             sos.add(habit)
             await sos.commit()
-            tracking = Tracking(habit_id=habit.id)
+            tracking = Tracking(habit_id=habit.id, completed=0, deferred=0)
             sos.add(tracking)
             await sos.commit()
+
+
+async def get_habit(message_id: int, habit_name: str) -> Habit | None:
+    async with (session() as sos):
+        user_id: int = await check_user(message_id)
+        if user_id:
+            stm = select(Habit).filter_by(user_id=user_id, name_habit=habit_name)
+            habit = await sos.execute(stm)
+            return habit.scalars().one_or_none()

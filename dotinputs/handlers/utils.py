@@ -1,15 +1,13 @@
-from datetime import datetime
-
-from config.environments import env
-from requests import Response
-import requests
 import json
+from datetime import datetime
+import requests
 from dotinputs import buttons as bn
+from config.environments import env
 
 
 def check_authorization(chat_id: int):
     """Функция для проверки авторизации пользователя"""
-    result: Response = requests.get(f"{env.MAIN_HOST}profile_user/{chat_id}/")
+    result = requests.get(f"{env.MAIN_HOST}profile_user/{chat_id}/")
     if result.status_code == 200:
         user: dict = json.loads(result.text)["user"]
         if user['authorization']:
@@ -97,7 +95,7 @@ def validator_period(datetime_user: str):
     return result_period
 
 
-def validator_params(param):
+def validator_params(param, chat_id):
     """Функция для проверки вводимых пользователем параметров"""
     period = param.get("period")
     count_period = param.get("count_period")
@@ -110,4 +108,8 @@ def validator_params(param):
             raise ValueError
         return new_count
     else:
-        return name_habit
+        result = requests.get(f"{env.MAIN_HOST}/habit/{name_habit}/{chat_id}/")
+        if result.status_code == 200:
+            return name_habit
+        else:
+            raise ValueError

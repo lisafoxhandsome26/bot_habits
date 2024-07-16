@@ -54,8 +54,8 @@ class Tracking(Base):
 
     id: Mapped[pk]
     last_update: Mapped[date | None]
-    completed: Mapped[int | None]
-    deferred: Mapped[int | None]
+    completed: Mapped[int]
+    deferred: Mapped[int]
     habit_id: Mapped["Habit"] = mapped_column(ForeignKey("habit.id", ondelete="CASCADE"))
 
     def __repr__(self):

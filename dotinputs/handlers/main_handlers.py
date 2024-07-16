@@ -1,3 +1,5 @@
+import json
+
 import requests
 from telebot import types
 from loader import bot
@@ -6,6 +8,7 @@ from dotinputs.states import STATES, user_state
 from config.environments import env
 from .handle_registration import handle_question
 from .utils import get_profile, get_data_user, check_authorization
+from ..scheduler.handle_schedule import pause_trigger, resumes_trigger
 
 
 @bot.message_handler(commands=["start"])
@@ -66,6 +69,10 @@ def end_check(message):
 def authorization_user(message):
     """Обработчик профиля пользователя"""
     chat_id: int = message.chat.id
+    result = requests.get(f"{env.MAIN_HOST}list_habit/{chat_id}")
+    if result.status_code == 200:
+        habits = json.loads(result.text)["habits"]
+        resumes_trigger(chat_id, habits)
     requests.patch(
         f"{env.MAIN_HOST}profile_user/authenticated/{chat_id}/",
         json={"status": True}
@@ -92,16 +99,17 @@ def page_habits(message):
 @bot.message_handler(func=lambda message: message.text == "Выйти из своего профиля")
 def exit_profile(message):
     chat_id: int = message.chat.id
+    result = requests.get(f"{env.MAIN_HOST}list_habit/{chat_id}")
+    if result.status_code == 200:
+        habits = json.loads(result.text)["habits"]
+        pause_trigger(chat_id, habits)
     requests.patch(
         f"{env.MAIN_HOST}profile_user/authenticated/{chat_id}/",
         json={"status": False}
     )
+    sms = "Выходим из профиля, чтобы заного войти в профиль можете нажать /start",
     mark = types.ReplyKeyboardRemove()
-    bot.send_message(
-        chat_id,
-        "Выходим из профиля, чтобы заного войти в профиль можете нажать /start",
-        reply_markup=mark
-    )
+    bot.send_message(chat_id, sms, reply_markup=mark)
 
 
 @bot.message_handler(

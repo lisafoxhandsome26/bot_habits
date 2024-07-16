@@ -41,6 +41,15 @@ async def authenticated_user(message_id: int, status=Body()):
 """Маршруты для взаимодействия с привычками"""
 
 
+@router.get("/habit/{habit_name}/{message_id}/")
+async def get_habit(message_id: int, habit_name: str):
+    """Получение привычки"""
+    result = await dao.get_habit(message_id, habit_name)
+    if result is None:
+        return JSONResponse(status_code=200, content={"result": True})
+    return JSONResponse(status_code=404, content={"result": False})
+
+
 @router.post("/habit/{message_id}/")
 async def add_habits(message_id: int, habit_data=Body()):
     """Добавление привычки"""
@@ -62,7 +71,22 @@ async def edit_habits(message_id: int, data=Body()):
     old_name_habit = data.get("old_name_habit")
     edit_data = data.get("edit_data")
     await dao.edit_habit(message_id, old_name_habit, edit_data)
-    return JSONResponse(status_code=202, content={"result": True})
+    return JSONResponse(status_code=202, content={"result": True, "new_habit": edit_data, "old_name": old_name_habit})
+
+
+@router.patch("/habit/status/{message_id}/")
+async def edit_status_habit(message_id: int, data_habit=Body()):
+    """Редактирование статуса привычки"""
+    name_habit: str = data_habit.get("name_habit")
+    completed: bool = data_habit.get("completed")
+    habit = await dao.get_habit(message_id, name_habit)
+    if habit:
+        if habit.count_period == 0:
+            return JSONResponse(status_code=202, content={"status": "Выполнено"})
+        else:
+            await dao.edit_status(habit, completed)
+            return JSONResponse(status_code=202, content={"status": "Изменено"})
+    return JSONResponse(status_code=404, content={"status": "Not Found"})
 
 
 @router.get("/list_habit/{message_id}")
