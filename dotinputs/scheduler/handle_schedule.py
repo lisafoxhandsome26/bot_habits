@@ -14,6 +14,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 def scheduled_message(chat_id, habit):
+    """Функция для отправки сообщения об выполнении привычки"""
     mark = types.InlineKeyboardMarkup()
     complited = types.InlineKeyboardButton("Выполнить", callback_data=f"Выполнить:{habit}")
     passed = types.InlineKeyboardButton("Пропустить", callback_data=f"Пропустить:{habit}")
@@ -22,11 +23,13 @@ def scheduled_message(chat_id, habit):
 
 
 def set_cron(chat_id: int, habit: str, new_time: int) -> None:
+    """Функция для установки автоматической отправки сообщения"""
     id_triger = str(chat_id) + habit
-    scheduler.add_job(scheduled_message, IntervalTrigger(seconds=30), args=[chat_id, habit], id=id_triger)
+    scheduler.add_job(scheduled_message, IntervalTrigger(seconds=new_time), args=[chat_id, habit], id=id_triger)
 
 
 def cancel_trigger(chat_id: int, habit: str) -> None:
+    """Функция для отмены автоматической отправки сообщений"""
     try:
         id_trigger = str(chat_id) + habit
         scheduler.remove_job(id_trigger)
@@ -35,12 +38,14 @@ def cancel_trigger(chat_id: int, habit: str) -> None:
 
 
 def pause_trigger(chat_id, habits):
+    """Функция для временной остановки автоматических сообщений пользователя"""
     for col in habits:
         id_trigger = str(chat_id) + col["name_habit"]
         scheduler.pause_job(id_trigger)
 
 
 def resumes_trigger(chat_id, habits):
+    """Функция для возобновления отправки автомтических сообщений пользователю"""
     for col in habits:
         id_trigger = str(chat_id) + col["name_habit"]
         scheduler.resume_job(id_trigger)

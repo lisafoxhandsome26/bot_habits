@@ -1,15 +1,12 @@
 from datetime import datetime
 from sqlalchemy import select, delete, update
 from sqlalchemy.orm import selectinload
-from .core import session, engine
-from .models import Base, User, Habit, Tracking
+from .core import session
+from .models import User, Habit, Tracking
 
 
 async def prepare_database() -> None:
     """Функция для подготовки базы данных"""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
     user = User(
         fullname="Александр Сергеев",
         age=27,

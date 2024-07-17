@@ -13,7 +13,6 @@ from ..scheduler.handle_schedule import pause_trigger, resumes_trigger
 
 @bot.message_handler(commands=["start"])
 def start(message):
-    """Основной обработчик"""
     id_chat: int = message.chat.id
     user_name: str = message.from_user.first_name
     user: dict = check_authorization(id_chat)
@@ -67,7 +66,6 @@ def end_check(message):
 
 @bot.message_handler(func=lambda message: message.text == "Авторизоваться")
 def authorization_user(message):
-    """Обработчик профиля пользователя"""
     chat_id: int = message.chat.id
     result = requests.get(f"{env.MAIN_HOST}list_habit/{chat_id}")
     if result.status_code == 200:

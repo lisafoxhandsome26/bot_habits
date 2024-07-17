@@ -9,8 +9,7 @@ from database.core import close_session
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    #await prepare_database()
-    print("Перезапуск")
+    print("Перезапуск backend fastapi")
     yield
     await close_session()
 

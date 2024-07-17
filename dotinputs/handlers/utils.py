@@ -74,7 +74,7 @@ def get_sms_habits(habits: list[dict]):
     return sms, mark
 
 
-def get_sms_for(habits: list[dict]):
+def get_sms_for(habits: list[dict]) -> tuple[str, dict]:
     """Функция для получения списка привычек для удаления или изменения"""
     data_habits: dict = {}
     sms: str = "👇👇 Ваш список привычек 👇👇\n\n"
@@ -84,7 +84,7 @@ def get_sms_for(habits: list[dict]):
     return sms, data_habits
 
 
-def validator_period(datetime_user: str):
+def validator_period(datetime_user: str) -> int:
     """Функция для проверки коректности вводимой даты для задания периода отправки смс"""
     datetime_user_obj = datetime.strptime(datetime_user, "%Y-%m-%d %H:%M:%S").timestamp()
     datetime_now_obj = datetime.now().timestamp()
@@ -95,7 +95,7 @@ def validator_period(datetime_user: str):
     return result_period
 
 
-def validator_params(param, chat_id):
+def validator_params(param: dict, chat_id: int):
     """Функция для проверки вводимых пользователем параметров"""
     period = param.get("period")
     count_period = param.get("count_period")

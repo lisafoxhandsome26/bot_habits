@@ -21,11 +21,13 @@ services:
       context: .
       dockerfile: DockerfileFastAPI
     restart: always
-    ports:
-      - "8000:8000"
     volumes:
       - ./.env:/src/.env
-    command: uvicorn main:app --host 0.0.0.0 --port 8000
+      - ./migrations:/src/migrations
+      - ./alembic.ini:/src/alembic.ini
+    entrypoint: sh -c "sleep 10 && alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000:8000"
     depends_on:
       - database
     networks:
@@ -36,13 +38,14 @@ services:
     build:
       context: .
       dockerfile: DockerfileBot
-    command: python bot.py
     restart: always
     volumes:
       - ./.env:/src/.env
+    entrypoint: sh -c "sleep 10 && python bot.py"
     ports:
       - "8080:8080"
     depends_on:
+      - database
       - fastapi
     networks:
       - backend

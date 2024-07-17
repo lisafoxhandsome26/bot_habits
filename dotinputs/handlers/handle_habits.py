@@ -105,18 +105,18 @@ def choice_del_habit(message, data_del, sms_for_del):
 )
 def make_delete_habit(call):
     chat_id: int = call.message.chat.id
-    text: list = call.data.split(":")
+    trigger, name_habit = call.data.split(":")
     mark = get_habits_page()
-    if text[0] == "NO":
-        sms = f'Удаление привычки "{text[1]}" не выполненно.'
+    if trigger == "NO":
+        sms = f'Удаление привычки "{name_habit}" не выполненно.'
         bot.send_message(chat_id, sms, reply_markup=mark)
     else:
         url = f"{env.MAIN_HOST}habit/{chat_id}/"
-        result = requests.delete(url, json={"name_habit": text[1]})
+        result = requests.delete(url, json={"name_habit": name_habit})
 
         if result.status_code == 202:
-            cancel_trigger(chat_id, text[1])
-            sms = f'Ваша привычка "{text[1]}" успешно удалена'
+            cancel_trigger(chat_id, name_habit)
+            sms = f'Ваша привычка "{name_habit}" успешно удалена'
             bot.send_message(chat_id, sms, reply_markup=mark)
         else:
             sms = "Что то пошло не так"
@@ -181,9 +181,9 @@ def add_habit(message):
                 f"{env.MAIN_HOST}habit/{chat_id}/",
                 json={"data_habit": habit_data}
             )
-            name_h = habit_data["name_habit"]
+            name_habit = habit_data["name_habit"]
             new_time = habit_data["period"]
-            set_cron(chat_id, name_h, new_time)
+            set_cron(chat_id, name_habit, new_time)
 
             habit_data = {}
             del habit_state[chat_id]
