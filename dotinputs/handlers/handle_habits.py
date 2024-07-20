@@ -13,7 +13,7 @@ from config.environments import env
 habit_data: dict = {}
 habit_state_edit: dict = {}
 habit_state: dict = {}
-
+del_name = "habit_name"
 habit_data_edit: dict = {"old_name_habit": None, "edit_data": None}
 
 STATES_ADD_HABIT: dict = {
@@ -83,12 +83,13 @@ def remove_habits(message):
 
 def choice_del_habit(message, data_del, sms_for_del):
     chat_id = message.chat.id
+    global del_name
     try:
-        name_habit = data_del[int(message.text)]["name_habit"]
-        calling_yes = f"YES:{name_habit}"
-        calling_no = f"NO:{name_habit}"
+        del_name = data_del[int(message.text)]["name_habit"]
+        calling_yes = "YES"
+        calling_no = "NO"
         mark = get_yes_or_no(calling_yes, calling_no)
-        sms = f'Вы уверены что хотите удалить привычку - "{name_habit}"?'
+        sms = f'Вы уверены что хотите удалить привычку - "{del_name}"?'
         bot.send_message(chat_id, sms, reply_markup=mark)
     except (ValueError, KeyError):
         mark = types.ReplyKeyboardRemove()
@@ -100,24 +101,25 @@ def choice_del_habit(message, data_del, sms_for_del):
 
 @bot.callback_query_handler(
     func=lambda call:
-    call.data.startswith("NO") or
-    call.data.startswith("YES")
+    call.data == "NO" or
+    call.data == "YES"
 )
 def make_delete_habit(call):
+    global del_name
     chat_id: int = call.message.chat.id
-    trigger, name_habit = call.data.split(":")
     mark = get_habits_page()
-    if trigger == "NO":
-        sms = f'Удаление привычки "{name_habit}" не выполненно.'
+    if call.data == "NO":
+        sms = f'Удаление привычки не выполненно.'
         bot.send_message(chat_id, sms, reply_markup=mark)
     else:
         url = f"{env.MAIN_HOST}habit/{chat_id}/"
-        result = requests.delete(url, json={"name_habit": name_habit})
+        result = requests.delete(url, json={"name_habit": del_name})
 
         if result.status_code == 202:
-            cancel_trigger(chat_id, name_habit)
-            sms = f'Ваша привычка "{name_habit}" успешно удалена'
+            cancel_trigger(chat_id, del_name)
+            sms = f'Ваша привычка успешно "{del_name}" удалена'
             bot.send_message(chat_id, sms, reply_markup=mark)
+            del_name = "name_habit"
         else:
             sms = "Что то пошло не так"
             bot.send_message(chat_id, sms, reply_markup=mark)
@@ -224,19 +226,19 @@ def choice_edit_habit(message, data_edit, sms_for_edit):
     try:
         global habit_data_edit
         habit = data_edit[int(message.text)]
-        name_habit = habit['name_habit']
+        edit_name = habit['name_habit']
         habit_data_edit['edit_data'] = habit
-        habit_data_edit["old_name_habit"] = name_habit
+        habit_data_edit["old_name_habit"] = edit_name
 
         mark = types.InlineKeyboardMarkup()
-        name = types.InlineKeyboardButton("Название", callback_data=f"name_habit:{name_habit}")
-        period = types.InlineKeyboardButton("Период", callback_data=f"period:{name_habit}")
-        count_period = types.InlineKeyboardButton("Количество смс", callback_data=f"count_period:{name_habit}")
-        all_params = types.InlineKeyboardButton("Все параметры", callback_data=f"all_params:{name_habit}")
+        name = types.InlineKeyboardButton("Название", callback_data="name_habit")
+        period = types.InlineKeyboardButton("Период", callback_data="period")
+        count_period = types.InlineKeyboardButton("Количество смс", callback_data="count_period")
+        all_params = types.InlineKeyboardButton("Все параметры", callback_data="all_params")
         mark.row(name, count_period)
         mark.row(period, all_params)
 
-        sms = f'Вы выбрали для изменения привычку - "{name_habit}". Вебирите параметр'
+        sms = f'Вы выбрали для изменения привычку - "{edit_name}". Вебирите параметр'
         bot.send_message(chat_id, sms, reply_markup=mark)
     except (ValueError, KeyError):
         sms, mark = f"Выберите пожалуйста коректный номер привычки!", types.ReplyKeyboardRemove()
@@ -247,36 +249,35 @@ def choice_edit_habit(message, data_edit, sms_for_edit):
 
 @bot.callback_query_handler(
     func=lambda call:
-    call.data.startswith("name_habit") or
-    call.data.startswith("period") or
-    call.data.startswith("count_period") or
-    call.data.startswith("all_params")
+    call.data == "name_habit" or
+    call.data == "period" or
+    call.data == "count_period" or
+    call.data == "all_params"
 )
-def callback_edit(callback):
-    chat_id: int = callback.message.chat.id
-    text: list = callback.data.split(":")[0]
-    if text == "name_habit":
+def callback_edit(call):
+    chat_id: int = call.message.chat.id
+    if call.data == "name_habit":
         sms1 = "Введите новое название привычки"
         bot.send_message(chat_id, sms1)
         old_name = habit_data_edit["old_name_habit"]
         sms2 = f'Вы уверены что хотите изменить название привычки с "{old_name}" на'
-        bot.register_next_step_handler(callback.message, edit_param, text, sms2)
-    elif text == "period":
+        bot.register_next_step_handler(call.message, edit_param, call.data, sms2)
+    elif call.data == "period":
         sms1 = f'Введите дату первого напоминания привычки в формате: {str(datetime.now())[:-7]}'
         bot.send_message(chat_id, sms1)
         sms2 = f'Вы уверены что хотите изменить время отправки смс на'
-        bot.register_next_step_handler(callback.message, edit_param, text, sms2)
-    elif text == "count_period":
+        bot.register_next_step_handler(call.message, edit_param, call.data, sms2)
+    elif call.data == "count_period":
         sms1 = "Сколько раз отправлять уведомления? Введите число не менее 21"
         bot.send_message(chat_id, sms1)
         old_count = habit_data_edit["edit_data"]['count_period']
         sms2 = f'Вы уверены что хотите изменить количество смс с {old_count} на'
-        bot.register_next_step_handler(callback.message, edit_param, text, sms2)
+        bot.register_next_step_handler(call.message, edit_param, call.data, sms2)
     else:
         habit_state_edit[chat_id] = STATES_EDIT['name_habit']
         sms = "Введите новое название привычки"
         bot.send_message(chat_id, sms)
-        edit_all_params(callback.message)
+        edit_all_params(call.message)
 
 
 @bot.message_handler(func=lambda message: message.chat.id in habit_state_edit)
@@ -314,11 +315,17 @@ def edit_all_params(message):
                 raise ValueError
             old_name = habit_data_edit["old_name_habit"]
             habit_data_edit['edit_data']['count_period'] = number
-            mark = get_yes_or_no(f"yes:{old_name}", f"no:{old_name}")
+            mark = get_yes_or_no("yes", "no")
             sms = f'Вы уверены что хотите изменить привычку "{old_name}"?'
             bot.send_message(chat_id, sms, reply_markup=mark)
         except ValueError:
             bot.send_message(chat_id, f"Введите пожалуйста целое число!")
+
+
+def reset_params(chat_id):
+    global habit_data_edit, habit_state_edit
+    habit_data_edit = {"old_name_habit": None, "edit_data": None}
+    habit_state_edit[chat_id] = None
 
 
 def edit_param(message, key, sms):
@@ -330,48 +337,46 @@ def edit_param(message, key, sms):
         bot.send_message(chat_id, "Введите пожалуйста коректное значение!")
         bot.register_next_step_handler(message, edit_param, key, sms)
     else:
-        old_name = habit_data_edit['old_name_habit']
         habit_data_edit["edit_data"][key] = result
-        mark = get_yes_or_no(f"yes:{old_name}", f"no:{old_name}")
+        mark = get_yes_or_no(f"yes", f"no")
         sms += f" {new_param}?"
         bot.send_message(chat_id, sms, reply_markup=mark)
 
 
 @bot.callback_query_handler(
     func=lambda call:
-    call.data.startswith("no") or
-    call.data.startswith("yes")
+    call.data == "no" or
+    call.data == "yes"
 )
 def make_edit_habit(call):
     global habit_data_edit, habit_state_edit
     chat_id: int = call.message.chat.id
-    text: list = call.data.split(":")
     mark = get_habits_page()
-    if text[0] == "yes":
+    if call.data == "yes":
         url = f"{env.MAIN_HOST}habit/{chat_id}/"
         result = requests.patch(url, json=habit_data_edit)
         if result.status_code == 202:
             data_habit = json.loads(result.text)
             try:
-                old_name: str = data_habit["old_name"]
                 new_name: str = data_habit["new_habit"]["name_habit"]
                 new_time: int = data_habit["new_habit"]["period"]
             except KeyError:
                 sms = "Что то пошло не так"
                 bot.send_message(chat_id, sms, reply_markup=mark)
             else:
-                cancel_trigger(chat_id, old_name)
+                edit_name = habit_data_edit["old_name_habit"]
+                cancel_trigger(chat_id, edit_name)
                 set_cron(chat_id, new_name, new_time)
-                sms = f'Ваша привычка "{text[1]}" успешно изменена'
+                sms = f'Ваша привычка "{edit_name}" успешно изменена'
                 bot.send_message(chat_id, sms, reply_markup=mark)
         else:
             sms = "Что то пошло не так"
             bot.send_message(chat_id, sms, reply_markup=mark)
-        habit_data_edit = {"old_name_habit": None, "edit_data": None}
-        habit_state_edit[chat_id] = None
+        reset_params(chat_id)
     else:
-        sms = f'Изменение привычки "{text[1]}" не произошло'
+        sms = f'Изменение привычки не произошло'
         bot.send_message(chat_id, sms, reply_markup=mark)
+        reset_params(chat_id)
 
 
 """Обработка неизвестных сообщений"""
