@@ -1,19 +1,14 @@
 from typing import Annotated
 from datetime import datetime
 
-from sqlalchemy.ext.asyncio import AsyncAttrs
-from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, relationship
+from sqlalchemy.orm import mapped_column, Mapped, relationship
 from sqlalchemy import ForeignKey
-
+from config.environments import Base
 
 pk = Annotated[int, mapped_column(primary_key=True, index=True)]
 date = Annotated[datetime, mapped_column(default=datetime.now)]
 str_255 = Annotated[str, 255]
 str_500 = Annotated[str, 500]
-
-
-class Base(DeclarativeBase, AsyncAttrs):
-    pass
 
 
 class User(Base):
@@ -27,7 +22,6 @@ class User(Base):
     why: Mapped[str]
     hobby: Mapped[str]
     chat_id: Mapped[int]
-    authorization: Mapped[bool]
     habits: Mapped[list["Habit"] | None] = relationship()
 
     def __repr__(self):

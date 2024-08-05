@@ -1,34 +1,38 @@
-import json
 from datetime import datetime
 import requests
 from dotinputs import buttons as bn
 from config.environments import env
+from ..database.dao import get_hashed_data
 
 
-def check_authorization(chat_id: int):
+def check_authorization(chat_id: int) -> str | bool:
     """Функция для проверки авторизации пользователя"""
-    result = requests.get(f"{env.MAIN_HOST}profile_user/{chat_id}/")
-    if result.status_code == 200:
-        user: dict = json.loads(result.text)["user"]
-        if user['authorization']:
-            return user
+    hashed = get_hashed_data(chat_id)
+    if hashed:
+        token: str = hashed.jwt_token
+        if len(token) > 70:
+            return token
         return "Авторизоваться"
     return False
 
 
 def get_profile(chat_id: int):
     """Функция для получения профиля пользователя"""
-    user: dict = check_authorization(chat_id)
-    if user:
-        sms, mark = get_data_user(user)
+    token: str = check_authorization(chat_id)
+    if token:
+        sms, mark = get_data_user(token)
         return sms, mark
     else:
         sms, mark = bn.get_authorization_buttons()
         return sms, mark
 
 
-def get_data_user(user: dict):
+def get_data_user(token: str):
     """Функция для создания и отправки информативного сообщения о пользователе"""
+    result = requests.get(f"{env.MAIN_HOST}profile_user/",
+                          headers={'Authorization': f'Bearer {token}'}
+                          )
+    user = result.json()["user"]
     try:
         sms = (f"👇👇 Ваш профиль пожалуйста 👇👇\n\n"
                f"📌 Ваше имя: {user['fullname']}\n"
@@ -95,7 +99,7 @@ def validator_period(datetime_user: str) -> int:
     return result_period
 
 
-def validator_params(param: dict, chat_id: int):
+def validator_params(param: dict, token: str):
     """Функция для проверки вводимых пользователем параметров"""
     period = param.get("period")
     count_period = param.get("count_period")
@@ -108,7 +112,11 @@ def validator_params(param: dict, chat_id: int):
             raise ValueError
         return new_count
     else:
-        result = requests.get(f"{env.MAIN_HOST}/habit/{name_habit}/{chat_id}/")
+        result = requests.get(
+            url=f"{env.MAIN_HOST}/habit/",
+            json={"habit_name": name_habit},
+            headers={'Authorization': f'Bearer {token}'}
+        )
         if result.status_code == 200:
             return name_habit
         else:

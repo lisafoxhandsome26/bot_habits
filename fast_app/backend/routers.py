@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Depends
 from fastapi.responses import JSONResponse
 from database import dao
-from shemases.shemases import UserSchema, HabitSchema
-
+from shemases import UserSchema, HabitSchema
+from .auth.jwt_token import decode_access_token, oauth2_scheme
 
 router = APIRouter()
 
@@ -10,89 +10,25 @@ router = APIRouter()
 """Маршруты для взаимодействия с пользователями"""
 
 
-@router.get("/profile_user/{message_id}/")
-async def get_profile(message_id: int):
+@router.get("/profile_user/")
+async def get_profile(token: str = Depends(oauth2_scheme)):
     """Получение данных о пользователе"""
-    data_user = await dao.get_all_data_user(message_id=message_id)
+    data: dict = decode_access_token(token)
+    data_user = await dao.get_all_data_user(user_id=data.get("user_id"))
     if data_user:
         data: dict = UserSchema.model_validate(data_user, from_attributes=True).dict()
         return JSONResponse(status_code=200, content={"user": data})
     return JSONResponse(status_code=404, content={"result": False})
 
 
-@router.post("/profile_user/")
-async def add_profile(data=Body()):
-    """Добавление пользователя"""
-    res = data.get("data")
-    if res:
-        await dao.add_user(res)
-        return JSONResponse(status_code=201, content={"result": True})
-    return JSONResponse(status_code=404, content={"result": False})
-
-
-@router.patch("/profile_user/authenticated/{message_id}/")
-async def authenticated_user(message_id: int, status=Body()):
-    """Аутентификация пользователя"""
-    res = status.get("status")
-    await dao.authenticated(message_id, res)
-    return JSONResponse(status_code=202, content={"result": True})
-
-
 """Маршруты для взаимодействия с привычками"""
 
 
-@router.get("/habit/{habit_name}/{message_id}/")
-async def get_habit(message_id: int, habit_name: str):
-    """Получение привычки"""
-    result = await dao.get_habit(message_id, habit_name)
-    if result is None:
-        return JSONResponse(status_code=200, content={"result": True})
-    return JSONResponse(status_code=404, content={"result": False})
-
-
-@router.post("/habit/{message_id}/")
-async def add_habits(message_id: int, habit_data=Body()):
-    """Добавление привычки"""
-    data = habit_data.get("data_habit")
-    await dao.add_habit(message_id, data)
-    return JSONResponse(status_code=201, content={"result": True})
-
-
-@router.delete("/habit/{message_id}/")
-async def delete_habits(message_id: int, name_habit=Body()):
-    """Удаление привычки"""
-    await dao.delete_habit(message_id, name_habit.get("name_habit"))
-    return JSONResponse(status_code=202, content={"result": True})
-
-
-@router.patch("/habit/{message_id}/")
-async def edit_habits(message_id: int, data=Body()):
-    """Редактирование привычки"""
-    old_name_habit = data.get("old_name_habit")
-    edit_data = data.get("edit_data")
-    await dao.edit_habit(message_id, old_name_habit, edit_data)
-    return JSONResponse(status_code=202, content={"result": True, "new_habit": edit_data, "old_name": old_name_habit})
-
-
-@router.patch("/habit/status/{message_id}/")
-async def edit_status_habit(message_id: int, data_habit=Body()):
-    """Редактирование статуса привычки"""
-    name_habit: str = data_habit.get("name_habit")
-    completed: bool = data_habit.get("completed")
-    habit = await dao.get_habit(message_id, name_habit)
-    if habit:
-        if habit.count_period == 0:
-            return JSONResponse(status_code=202, content={"status": "Выполнено"})
-        else:
-            await dao.edit_status(habit, completed)
-            return JSONResponse(status_code=202, content={"status": "Изменено"})
-    return JSONResponse(status_code=404, content={"status": "Not Found"})
-
-
-@router.get("/list_habit/{message_id}")
-async def get_habits(message_id):
+@router.get("/list_habit/")
+async def get_habits(token: str = Depends(oauth2_scheme)):
     """Получение списка привычек"""
-    habits: list | None = await dao.get_list_habit(message_id)
+    data: dict = decode_access_token(token)
+    habits: list | None = await dao.get_list_habit(data.get("user_id"))
     if habits:
         data: list[dict] = [
             HabitSchema.model_validate(obj, from_attributes=True).dict()
@@ -100,3 +36,57 @@ async def get_habits(message_id):
         ]
         return JSONResponse(status_code=200, content={"result": True, "habits": data})
     return JSONResponse(status_code=404, content={"result": False, "habits": None})
+
+
+@router.get("/habit/")
+async def get_habit(habit_name=Body(), token: str = Depends(oauth2_scheme)):
+    """Получение привычки"""
+    name: str = habit_name.get("habit_name")
+    data: dict = decode_access_token(token)
+    result = await dao.get_habit(data.get("user_id"), name)
+    if result is None:
+        return JSONResponse(status_code=200, content={"result": True})
+    return JSONResponse(status_code=404, content={"result": False})
+
+
+@router.post("/habit/")
+async def add_habits(habit_data=Body(), token: str = Depends(oauth2_scheme)):
+    """Добавление привычки"""
+    data_habits: dict = habit_data.get("data_habit")
+    data: dict = decode_access_token(token)
+    await dao.add_habit(data.get("user_id"), data_habits)
+    return JSONResponse(status_code=201, content={"result": True})
+
+
+@router.delete("/habit/")
+async def delete_habits(name_habit=Body(), token: str = Depends(oauth2_scheme)):
+    """Удаление привычки"""
+    data: dict = decode_access_token(token)
+    await dao.delete_habit(data.get("user_id"), name_habit.get("name_habit"))
+    return JSONResponse(status_code=202, content={"result": True})
+
+
+@router.patch("/habit/")
+async def edit_habits(data_habits=Body(), token: str = Depends(oauth2_scheme)):
+    """Редактирование привычки"""
+    data: dict = decode_access_token(token)
+    old_name_habit: str = data_habits.get("old_name_habit")
+    edit_data: dict = data_habits.get("edit_data")
+    await dao.edit_habit(data.get("user_id"), old_name_habit, edit_data)
+    return JSONResponse(status_code=202, content={"result": True, "new_habit": edit_data, "old_name": old_name_habit})
+
+
+@router.patch("/habit/status/")
+async def edit_status_habit(data_habit=Body(), token: str = Depends(oauth2_scheme)):
+    """Редактирование статуса привычки"""
+    data: dict = decode_access_token(token)
+    name_habit: str = data_habit.get("name_habit")
+    completed: bool = data_habit.get("completed")
+    habit = await dao.get_habit(data.get("user_id"), name_habit)
+    if habit:
+        if habit.count_period == 0:
+            return JSONResponse(status_code=202, content={"status": "Выполнено"})
+        else:
+            await dao.edit_status(habit, completed)
+            return JSONResponse(status_code=202, content={"status": "Изменено"})
+    return JSONResponse(status_code=404, content={"status": "Not Found"})

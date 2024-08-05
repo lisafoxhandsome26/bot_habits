@@ -6,7 +6,9 @@ ENV PYTHONUNBUFFERED 1
 
 COPY /fast_app/ .
 COPY /requirements/fast_api .
-COPY /config/ /src/config
+COPY /config/environments.py /src/config/environments.py
+COPY /config/async_database.py /src/config/async_database.py
+
 
 
 RUN pip install --upgrade pip "poetry==1.8.3"

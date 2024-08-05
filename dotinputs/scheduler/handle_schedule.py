@@ -1,4 +1,3 @@
-import json
 import logging
 import requests
 from apscheduler.triggers.interval import IntervalTrigger
@@ -8,6 +7,7 @@ from ..buttons import get_habits_page
 from telebot import types
 from .core import scheduler
 from config.environments import env
+from ..database import dao
 
 
 logging.basicConfig(level=logging.INFO)
@@ -25,7 +25,7 @@ def scheduled_message(chat_id, habit):
 def set_cron(chat_id: int, habit: str, new_time: int) -> None:
     """Функция для установки автоматической отправки сообщения"""
     id_triger = str(chat_id) + habit
-    scheduler.add_job(scheduled_message, IntervalTrigger(seconds=new_time), args=[chat_id, habit], id=id_triger)
+    scheduler.add_job(scheduled_message, IntervalTrigger(seconds=30), args=[chat_id, habit], id=id_triger)
 
 
 def cancel_trigger(chat_id: int, habit: str) -> None:
@@ -61,12 +61,15 @@ def record_execution(call):
     message_id: int = call.message.message_id
     trigger, name_habit = call.data.split(":")
     mark = get_habits_page()
+    hashed = dao.get_hashed_data(chat_id)
     if trigger == "Выполнить":
         result = requests.patch(
-            f"{env.MAIN_HOST}habit/status/{chat_id}/",
-            json={"name_habit": name_habit, "completed": True})
+            url=f"{env.MAIN_HOST}habit/status/",
+            json={"name_habit": name_habit, "completed": True},
+            headers={'Authorization': f'Bearer {hashed.jwt_token}'}
+        )
         if result.status_code == 202:
-            data: dict = json.loads(result.text)
+            data: dict = result.json()
             if data["status"] == "Выполнено":
                 cancel_trigger(chat_id, name_habit)
                 sms = f"❤️ Примите мои поздравления вы выполнили заданное количество повторений {name_habit}"
@@ -79,8 +82,10 @@ def record_execution(call):
             bot.send_message(chat_id, sms, reply_markup=mark)
     else:
         requests.patch(
-            f"{env.MAIN_HOST}habit/status/{chat_id}/",
-            json={"name_habit": name_habit, "completed": False})
+            url=f"{env.MAIN_HOST}habit/status/",
+            json={"name_habit": name_habit, "completed": False},
+            headers={'Authorization': f'Bearer {hashed.jwt_token}'}
+        )
         sms = f'😌 Выполнение привычки "{name_habit}" перенесено на следующий раз'
         bot.send_message(chat_id, sms, reply_markup=mark)
     bot.edit_message_reply_markup(chat_id=chat_id, message_id=message_id, reply_markup=None)

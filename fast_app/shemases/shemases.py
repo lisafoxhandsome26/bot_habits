@@ -9,7 +9,6 @@ class UserSchema(BaseModel):
     purpose: str
     why: str
     hobby: str
-    authorization: bool
     habits: list["HabitSchema"] | None
 
 

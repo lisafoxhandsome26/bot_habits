@@ -5,7 +5,7 @@ from loader import bot
 from dotinputs.states import user_state, STATES
 from dotinputs.buttons import get_profile_buttons
 from config.environments import env
-
+from ..database.dao import add_hash_data
 
 user_data: dict = {}
 
@@ -43,13 +43,15 @@ def handle_question(message):
     elif state == STATES['register']:
         user_data["hobby"] = message.text
         user_data["chat_id"] = chat_id
-        user_data["authorization"] = True
         sms = ("Спасибо за твои ответы! 👱‍♂️\n"
                "Теперь ты можешь устанавливать свои новые привычки,\n"
                "а я буду их контролировать.")
 
-        result = requests.post(f"{env.MAIN_HOST}profile_user/", json={"data": user_data})
+        result = requests.post(f"{env.MAIN_HOST}register/",
+                               json={"data": user_data, "chat": chat_id})
         if result.status_code == 201:
+            hash_data = result.json()
+            add_hash_data(chat_id, hash_data)
             mark = get_profile_buttons()
             bot.send_message(chat_id, sms, reply_markup=mark)
         else:

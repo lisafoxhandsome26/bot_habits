@@ -7,19 +7,20 @@ from dotinputs.buttons import get_habits_page, get_authorization_buttons
 from dotinputs.states import STATES, user_state
 from config.environments import env
 from .handle_registration import handle_question
-from .utils import get_profile, get_data_user, check_authorization
+from .utils import get_data_user, check_authorization
 from ..scheduler.handle_schedule import pause_trigger, resumes_trigger
+from ..database.dao import get_hashed_data, authenticated
 
 
 @bot.message_handler(commands=["start"])
 def start(message):
     id_chat: int = message.chat.id
     user_name: str = message.from_user.first_name
-    user: dict = check_authorization(id_chat)
-    if user != "Авторизоваться" and user is not False:
-        sms, mark = get_data_user(user)
+    token: str | bool = check_authorization(id_chat)
+    if token != "Авторизоваться" and token is not False:
+        sms, mark = get_data_user(token)
         bot.send_message(id_chat, sms, reply_markup=mark)
-    elif user == "Авторизоваться":
+    elif token == "Авторизоваться":
         sms, mark = get_authorization_buttons()
         bot.send_message(id_chat, sms, reply_markup=mark)
     else:
@@ -64,30 +65,58 @@ def end_check(message):
         bot.register_next_step_handler(message, start)
 
 
-@bot.message_handler(func=lambda message: message.text == "Авторизоваться")
-def authorization_user(message):
+@bot.message_handler(
+    func=lambda message:
+    message.text == "Вернуться назад" or
+    message.text == "Узнать инфо о себе"
+)
+def comeback_or_info(message):
     chat_id: int = message.chat.id
-    result = requests.get(f"{env.MAIN_HOST}list_habit/{chat_id}")
-    if result.status_code == 200:
-        habits = json.loads(result.text)["habits"]
-        resumes_trigger(chat_id, habits)
-    requests.patch(
-        f"{env.MAIN_HOST}profile_user/authenticated/{chat_id}/",
-        json={"status": True}
-    )
-    sms, mark = get_profile(chat_id)
-    bot.send_message(chat_id, sms, reply_markup=mark)
+    token = check_authorization(chat_id)
+    if token != "Авторизоваться" and token is not False:
+        sms, mark = get_data_user(token)
+        bot.send_message(chat_id, sms, reply_markup=mark)
+    elif token == "Авторизоваться":
+        sms, mark = get_authorization_buttons()
+        bot.send_message(chat_id, sms, reply_markup=mark)
+    else:
+        sms, mark = "Что то пошло не так", types.ReplyKeyboardRemove()
+        bot.send_message(chat_id, sms, reply_markup=mark)
 
 
 @bot.message_handler(func=lambda message: message.text == "Вкладка с привычками")
 def page_habits(message):
     chat_id: int = message.chat.id
-    user: dict = check_authorization(chat_id)
-    if user != "Авторизоваться" and user is not False:
+    token: str = check_authorization(chat_id)
+    if token != "Авторизоваться" and token is not False:
         sms, mark = "Переходим на вкладку с привычками", get_habits_page()
         bot.send_message(chat_id, sms, reply_markup=mark)
-    elif user == "Авторизоваться":
+    elif token == "Авторизоваться":
         sms, mark = get_authorization_buttons()
+        bot.send_message(chat_id, sms, reply_markup=mark)
+    else:
+        sms, mark = "Что то пошло не так", types.ReplyKeyboardRemove()
+        bot.send_message(chat_id, sms, reply_markup=mark)
+
+
+@bot.message_handler(func=lambda message: message.text == "Авторизоваться")
+def authorization_user(message):
+    chat_id: int = message.chat.id
+    hashed = get_hashed_data(chat_id)
+    if hashed:
+        result = requests.patch(
+            url=f"{env.MAIN_HOST}login/",
+            json={"chat_id": chat_id, "hash_pass": hashed.password, "user_id": hashed.user_id}
+        )
+        new_token = result.json()["token"]
+        authenticated(chat_id, new_token)
+        result = requests.get(
+            url=f"{env.MAIN_HOST}list_habit/",
+            headers={'Authorization': f'Bearer {new_token}'})
+        if result.status_code == 200:
+            habits = result.json()["habits"]
+            resumes_trigger(chat_id, habits)
+        sms, mark = get_data_user(new_token)
         bot.send_message(chat_id, sms, reply_markup=mark)
     else:
         sms, mark = "Что то пошло не так", types.ReplyKeyboardRemove()
@@ -97,25 +126,22 @@ def page_habits(message):
 @bot.message_handler(func=lambda message: message.text == "Выйти из своего профиля")
 def exit_profile(message):
     chat_id: int = message.chat.id
-    result = requests.get(f"{env.MAIN_HOST}list_habit/{chat_id}")
-    if result.status_code == 200:
-        habits = json.loads(result.text)["habits"]
-        pause_trigger(chat_id, habits)
-    requests.patch(
-        f"{env.MAIN_HOST}profile_user/authenticated/{chat_id}/",
-        json={"status": False}
-    )
-    sms = "Выходим из профиля, чтобы заного войти в профиль можете нажать /start",
-    mark = types.ReplyKeyboardRemove()
-    bot.send_message(chat_id, sms, reply_markup=mark)
 
-
-@bot.message_handler(
-    func=lambda message:
-    message.text == "Вернуться назад" or
-    message.text == "Узнать инфо о себе"
-)
-def comeback_or_info(message):
-    chat_id: int = message.chat.id
-    sms, mark = get_profile(chat_id)
-    bot.send_message(chat_id, sms, reply_markup=mark)
+    hashed = get_hashed_data(chat_id)
+    if hashed:
+        result = requests.get(
+            url=f"{env.MAIN_HOST}list_habit/",
+            headers={'Authorization': f'Bearer {hashed.jwt_token}'}
+        )
+        if result.status_code == 200:
+            habits = json.loads(result.text)["habits"]
+            pause_trigger(chat_id, habits)
+        result = requests.patch(
+            url=f"{env.MAIN_HOST}logaut/",
+            json={"chat": chat_id}
+        )
+        bad_token = result.json()["token"]
+        authenticated(chat_id, bad_token)
+        sms = "Выходим из профиля, чтобы заного войти в профиль можете нажать /start",
+        mark = types.ReplyKeyboardRemove()
+        bot.send_message(chat_id, sms, reply_markup=mark)

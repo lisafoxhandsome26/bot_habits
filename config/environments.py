@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from sqlalchemy.orm import declarative_base
 
 
 class Settings(BaseSettings):
@@ -11,17 +12,13 @@ class Settings(BaseSettings):
     DB_NAME: str
     DB_PORT: int
     DB_HOST: str
+    SECRET_KEY: str
+    ALGORITHM: str
 
     class Config:
         env_file = ".env"
 
-    @property
-    def database_url_async(self):
-        return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
-
-    @property
-    def database_url_sync(self):
-        return f"postgresql+psycopg2://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
-
 
 env = Settings()
+
+Base = declarative_base()
