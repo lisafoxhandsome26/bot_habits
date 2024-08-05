@@ -25,7 +25,7 @@ def scheduled_message(chat_id, habit):
 def set_cron(chat_id: int, habit: str, new_time: int) -> None:
     """Функция для установки автоматической отправки сообщения"""
     id_triger = str(chat_id) + habit
-    scheduler.add_job(scheduled_message, IntervalTrigger(seconds=30), args=[chat_id, habit], id=id_triger)
+    scheduler.add_job(scheduled_message, IntervalTrigger(seconds=new_time), args=[chat_id, habit], id=id_triger)
 
 
 def cancel_trigger(chat_id: int, habit: str) -> None:
