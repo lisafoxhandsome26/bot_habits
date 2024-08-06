@@ -35,7 +35,7 @@ def get_authorization_buttons():
     return sms, mark
 
 
-def get_yes_or_no(calling_yes, calling_no):
+def get_yes_or_no(calling_yes: str, calling_no: str):
     """Кнопки для подтверждения выполняемого действия"""
     mark = types.InlineKeyboardMarkup()
     yes = types.InlineKeyboardButton("Да", callback_data=calling_yes)

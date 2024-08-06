@@ -27,17 +27,3 @@ DATA_USER: list = [
         "habits": []
     }
 ]
-
-data = {
-    "fullname": "Александр Сергеев",
-    "age": 27,
-    "location": "смт Луганское",
-    "purpose": "Улучшить свою жизнь",
-    "why": "Хочу быть счастливым",
-    "hobby": "Увлекаюсь компьютерами, машинами, и девушками",
-    "chat_id": 921946846,
-    "authorization": True,
-}
-
-password = "fabnffwoenff"
-jwt_to = "dfionfoienidfe"
